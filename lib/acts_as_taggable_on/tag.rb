@@ -9,6 +9,11 @@ module ActsAsTaggableOn
 
     has_many :taggings, :dependent => :destroy, :class_name => 'ActsAsTaggableOn::Tagging'
 
+    ### GLOBALIZE:
+
+    translates :name if ActsAsTaggableOn.globalize
+    self.default_scope { includes(:translations) } if ActsAsTaggableOn.globalize
+
     ### VALIDATIONS:
 
     validates_presence_of :name
@@ -78,7 +83,56 @@ module ActsAsTaggableOn
         comparable_tag_name = comparable_name(tag_name)
         existing_tag = existing_tags.detect { |tag| comparable_name(tag.name) == comparable_tag_name }
 
-        existing_tag || Tag.create(:name => tag_name)
+        if existing_tag
+          if ActsAsTaggableOn.globalize
+            # finding translations with same name
+            same_translations = ActsAsTaggableOn::Tag::Translation.where(name: existing_tag.name)
+            # get their tag_ids in tags
+            grouped_by_tag_id = same_translations.group_by {|t| t.tag_id}
+            tags = []
+            grouped_by_tag_id.each do |object|
+              object[1].each do |tr|
+                tags << tr.tag_id
+              end
+            end
+            translations = ActsAsTaggableOn::Tag::Translation.where(tag_id: tags)
+            grouped = translations.group_by {|t|  t.tag_id}
+            tag_id_counter = {}
+            grouped.each {|a| tag_id_counter[a[1].first.tag_id] = a[1].count }
+            maximal = tag_id_counter.max_by {|x| x[1]}
+            tag = maximal[0]
+            Tag.find(tag)
+          else
+            existing_tag
+          end
+        else
+          if ActsAsTaggableOn.globalize
+            # finding translations with same name
+            same_translations = ActsAsTaggableOn::Tag::Translation.where(name: tag_name)
+            # get their tag_ids in tags
+            grouped_by_tag_id = same_translations.group_by {|t| t.tag_id} unless same_translations.blank?
+            tags = []
+            unless grouped_by_tag_id.blank?
+              grouped_by_tag_id.each do |object|
+                object[1].each do |tr|
+                  tags << tr.tag_id
+                end
+              end
+              translations = ActsAsTaggableOn::Tag::Translation.where(tag_id: tags)
+              grouped = translations.group_by {|t|  t.tag_id}
+              tag_id_counter = {}
+              grouped.each {|a| tag_id_counter[a[1].first.tag_id] = a[1].count }
+              maximal = tag_id_counter.max_by {|x| x[1]}
+              tag = maximal[0]
+              Tag.find(tag)
+            else
+              Tag.create(:name => tag_name)
+            end
+          else
+            Tag.create(:name => tag_name)
+          end
+        end
+
       end
     end
 

@@ -27,12 +27,13 @@ module ActsAsTaggableOn
   end
 
   class Configuration
-    attr_accessor :delimiter, :force_lowercase, :force_parameterize,
+    attr_accessor :delimiter, :force_lowercase, :globalize, :force_parameterize,
       :strict_case_match, :remove_unused_tags
 
     def initialize
       @delimiter = ','
       @force_lowercase = false
+      @globalize = false
       @force_parameterize = false
       @strict_case_match = false
       @remove_unused_tags = false
